@@ -3,6 +3,9 @@
    <configuration>
       <verify-metadata>true</verify-metadata>
       <verify-signatures>false</verify-signatures>
+      <trusted-artifacts>
+         <trust group="net.runelite"/>
+      </trusted-artifacts>
    </configuration>
    <components>
       <component group="aopalliance" name="aopalliance" version="1.0">
