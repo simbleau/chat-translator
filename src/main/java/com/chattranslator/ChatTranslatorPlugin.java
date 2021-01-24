@@ -162,7 +162,7 @@ public class ChatTranslatorPlugin extends Plugin {
                 menuEntry.setChatLineData(chatData);
                 menuEntry.setTargetLanguage(this.config.lastSourceLanguageCode(), this.config.lastSourceLanguageName());
             }
-            if (chatData == null) {
+            if (chatData == null || chatData.getChatLine().isEmpty()) {
                 return;
             }
             client.setMenuEntries(ArrayUtils.insert(1, client.getMenuEntries(), menuEntry));
