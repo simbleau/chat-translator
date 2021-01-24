@@ -30,9 +30,6 @@ dependencies {
     implementation platform('com.google.cloud:libraries-bom:16.2.1') {
         exclude group: 'com.google.guava'
     }
-    compile('com.google.cloud:google-cloud-storage') {
-        exclude group: 'com.google.guava'
-    }
     compile('com.google.cloud:google-cloud-translate') {
         exclude group: 'com.google.guava'
     }
