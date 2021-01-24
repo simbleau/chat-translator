@@ -19,7 +19,7 @@
 # Setup
 ---
   - Start a Google Cloud Platform account.
-    - Option 1 **(Recommended)** - [Use my referral link](https://imbleau.com) to help me. Thank you!
+    - Option 1 **(Recommended)** - [Use my referral link](http://imbleau.com/google-refer) to help me. Thank you!
     - Option 2 - [Sign up the default way](https://console.cloud.google.com/freetrial) to help Google. :(
   
     ![Step 1](https://imbleau.com/runelite/step1.png)
