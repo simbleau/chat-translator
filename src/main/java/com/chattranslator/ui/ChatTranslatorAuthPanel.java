@@ -73,7 +73,7 @@ public class ChatTranslatorAuthPanel extends PluginPanel {
         helpIcon.setToolTipText("Step-by-step instructions for this plugin");
         helpIcon.setBackground(ColorScheme.DARK_GRAY_COLOR);
         helpIcon.setUI(new BasicButtonUI());
-        helpIcon.addActionListener((ev) -> LinkBrowser.browse("https://github.com/simbleau/chat-translator"));
+        helpIcon.addActionListener((ev) -> LinkBrowser.browse("https://github.com/simbleau/chat-translator#setup"));
         helpIcon.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 helpIcon.setBackground(ColorScheme.DARK_GRAY_HOVER_COLOR);
