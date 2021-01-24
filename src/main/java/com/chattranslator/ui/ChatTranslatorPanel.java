@@ -81,22 +81,4 @@ public class ChatTranslatorPanel extends PluginPanel {
         this.bodyPanel.langPanel.disableOptions();
     }
 
-    /**
-     * Load the source language into the language panel. This should always be done after the panel is enabled.
-     *
-     * @param languageCode - the source language code, e.g. 'en' (English)
-     */
-    public void loadSourceLanguage(String languageCode) {
-        this.bodyPanel.langPanel.setSourceLanguage(languageCode);
-    }
-
-    /**
-     * Load the target language into the language panel. This should always be done after the panel is enabled.
-     *
-     * @param languageCode - the source language code, e.g. 'da' (Danish)
-     */
-    public void loadTargetLanguage(String languageCode) {
-        this.bodyPanel.langPanel.setTargetLanguage(languageCode);
-    }
-
 }

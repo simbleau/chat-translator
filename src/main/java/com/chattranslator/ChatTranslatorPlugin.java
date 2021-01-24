@@ -106,11 +106,10 @@ public class ChatTranslatorPlugin extends Plugin {
         // Initialize the panel
         this.panel = injector.getInstance(ChatTranslatorPanel.class);
         if (this.translator.isAuthenticated()) {
-            this.panel.enableLanguagePanel(this.translator.getSupportedLanguages());
-            this.panel.loadSourceLanguage(this.config.lastSourceLanguageCode());
-            this.panel.loadTargetLanguage(this.config.lastTargetLanguageCode());
+            this.panel.bodyPanel.langPanel.enableOptions(this.translator.getSupportedLanguages());
+            this.loadLastSettings();
         } else {
-            this.panel.disableLanguagePanel();
+            this.panel.bodyPanel.langPanel.disableOptions();
         }
 
         // Add the panel nav button to the client toolbar
@@ -132,8 +131,9 @@ public class ChatTranslatorPlugin extends Plugin {
     }
 
     public void loadLastSettings() {
-        this.panel.loadSourceLanguage(this.config.lastSourceLanguageCode());
-        this.panel.loadTargetLanguage(this.config.lastTargetLanguageCode());
+        // Load the last source language and target language into the language panel
+        this.panel.bodyPanel.langPanel.setSourceLanguage(this.config.lastSourceLanguageCode());
+        this.panel.bodyPanel.langPanel.setTargetLanguage(this.config.lastTargetLanguageCode());
     }
 
     @Subscribe
