@@ -4,10 +4,6 @@
 
 :warning: **You will need to set up a billing account on Google. You will almost certainly never be charged by Google for normal use of this plugin.** :warning:
 
-# Screenshots & GIFs
----
-TODO.
-
 # How do I use this plugin?
 ---
   - In the RuneLite Chat Translator panel, you can specify a source language and a target language for translation.
