@@ -14,7 +14,11 @@ TODO.
     - The source language is a language you spek
     - The target language is a language you (probably) don't speak and want to translate to
   - Right click over a chat message of text in the chat box to translate
+    ![Demo 1](http://imbleau.com/runelite/demo1.gif)
+
   - You can also type a message, and right click your chat input to translate
+
+    ![Demo 2](http://imbleau.com/runelite/demo2.gif)
 
 # Setup
 ---
@@ -63,3 +67,5 @@ TODO.
     ![Step 8](http://imbleau.com/runelite/step8.png)
     
   - You're done! Enjoy!
+
+    ![Step 8](http://imbleau.com/runelite/done.png)
