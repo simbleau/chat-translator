@@ -1,2 +1,65 @@
-# Example
-An example greeter plugin
+# Chat Translator
+
+🅰️->🈯️ The Chat Translator plugin allows players to translate any message in the chat box by right clicking the message. The plugin uses Google Cloud Platform's Translate API. This means the player must setup such an account and download their credentials for use in this plugin. Steps are given below.
+
+:warning: **You will need to set up a billing account on Google. You will almost certainly never be charged by Google for normal use of this plugin.** :warning:
+
+# Screenshots & GIFs
+---
+TODO.
+
+# How do I use this plugin?
+---
+  - In the RuneLite Chat Translator panel, you can specify a source language and a target language for translation.
+    - The source language is a language you spek
+    - The target language is a language you (probably) don't speak and want to translate to
+  - Right click over a chat message of text in the chat box to translate
+  - You can also type a message, and right click your chat input to translate
+
+# Setup
+---
+  - Start a Google Cloud Platform account.
+    - Option 1 **(Recommended)** - [Use my referral link](https://imbleau.com) to help me. Thank you!
+    - Option 2 - [Sign up the default way](https://console.cloud.google.com/freetrial) to help Google. :(
+  
+    ![Step 1](http://imbleau.com/runelite/step1.png)
+
+  - Navigate to [Google Cloud Platform Billing](https://console.cloud.google.com/billing) and set up a billing account.
+    
+    ![Step 2](http://imbleau.com/runelite/step2.png)
+
+  - Link your [billing account](https://console.cloud.google.com/billing) to a project. You are automatically started with a created project when you sign up called "My Project". If you don't have a created, project, you can [click here](https://console.cloud.google.com/projectcreate) to create one.
+    
+    ![Step 3](http://imbleau.com/runelite/step3.png)
+    - Will translating cost you? **Short answer: Probably not.**
+    At the time of writing this, you receive 500,000 characters of translation free every month. But their [pricing](https://cloud.google.com/translate/pricing) may change, so check. Unless you plan on translating that much, you pay __nothing__. If you used my referral link, you were also gifted the amount of 18,000,000 characters of translation for the first 3 months for free.
+
+      | Monthly Usage | Price |
+      | ------ | ----- |
+      | < 500,000 characters | Free (applied as $10 credit every month) |
+      | > 500,000 characters | $20 per million characters |
+
+  - [Enable the Google Cloud Translate API](https://console.cloud.google.com/flows/enableapi?apiid=translate.googleapis.com).
+    
+    ![Step 4](http://imbleau.com/runelite/step4.png)
+    - If you ever want to stop this plugin from working, you can [shut down the project](https://cloud.google.com/resource-manager/docs/creating-managing-projects#shutting_down_projects), [close your billing account](https://cloud.google.com/billing/docs/how-to/manage-billing-account#close_a_billing_account), or [disable the API](https://cloud.google.com/service-usage/docs/enable-disable#disabling).
+    - Alternatively, if you're ever worried about getting charged, you can [set a budget](https://cloud.google.com/billing/docs/how-to/budgets) with notifications or [cap API usage](https://cloud.google.com/apis/docs/capping-api-usage) with quoatas. 
+    
+    
+  - Navigate to the [API credentials](https://console.cloud.google.com/apis/credentials) of your project.
+    
+    ![Step 5](http://imbleau.com/runelite/step5.png)
+
+  - [Create a service account for your project](https://console.cloud.google.com/iam-admin/serviceaccounts/create).
+    
+    ![Step 6](http://imbleau.com/runelite/step6.png)
+    
+  - [Navigate to your service accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) and create a key for your service account. This will open a dialog to download your credentials as a file. JSON format is recommended. This is a sensitive file, so you should secure it. Do not share it with anyone.
+    
+    ![Step 7](http://imbleau.com/runelite/step7.png)
+    
+  - On the RuneLite plugin, open the Chat Translator panel, and press "Authenticate". Select your credentials file downloaded from the previous step.
+    
+    ![Step 8](http://imbleau.com/runelite/step8.png)
+    
+  - You're done! Enjoy!
