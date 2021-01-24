@@ -49,7 +49,6 @@ public interface ChatTranslatorConfig extends Config {
             keyName = "credentials",
             name = "Google Cloud Credentials",
             description = "The contents of a private key file from Google Cloud Platform used to authenticate.",
-            secret = false, // this should be true if hidden is false
             hidden = true // change to false for easier debugging!
     )
     default String lastCredentials() {

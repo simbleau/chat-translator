@@ -96,7 +96,7 @@ public class ChatTranslator {
                     .map(lang -> "\t" + lang.toString())
                     .collect(Collectors.joining("\n")));
         } catch (Exception e) {
-            throw new GoogleAuthenticationException("Failed to receive supported languages after successful authentication", e);
+            throw new GoogleAPIException("Failed to receive supported languages after successful authentication", e);
         }
 
         config.lastCredentials(credentialData); // Save config

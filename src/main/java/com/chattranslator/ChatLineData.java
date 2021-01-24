@@ -19,33 +19,24 @@ class ChatLineData {
     /**
      * The chat line text being translated.
      */
-    private String chatLine;
+    private final String chatLine;
 
     /**
      * Whether the chat line text was sent by the local player.
      */
-    private boolean isLocalPlayer;
+    private final boolean isLocalPlayer;
 
     /**
-     * Store a chatline message widget by a player
+     * Store chatline data
      *
+     * @param rsn - the runescape name of the player who sent the message (or null)
      * @param chatLine - the text on the chatline
+     * @param isLocalPlayer - whether the chatline came from the local player
      */
-    public ChatLineData(@Nonnull String rsn, @Nonnull String chatLine, boolean isLocalPlayer) {
+    public ChatLineData(@Nullable String rsn, @Nonnull String chatLine, boolean isLocalPlayer) {
         this.rsn = rsn;
         this.chatLine = chatLine;
         this.isLocalPlayer = isLocalPlayer;
-    }
-
-    /**
-     * Store a generic "game chat"-like message widget
-     *
-     * @param chatLine - the text on the chatline
-     */
-    public ChatLineData(@Nonnull String chatLine) {
-        this.rsn = null;
-        this.chatLine = chatLine;
-        this.isLocalPlayer = false;
     }
 
     /**
@@ -80,7 +71,7 @@ class ChatLineData {
      */
     public @Nullable
     String getRSN() {
-        return rsn;
+        return this.rsn;
     }
 
     /**

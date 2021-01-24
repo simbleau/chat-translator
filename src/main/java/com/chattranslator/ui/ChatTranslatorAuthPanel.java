@@ -17,8 +17,8 @@ import java.awt.image.BufferedImage;
 /**
  * The authentication panel for the Chat Translator. This holds instructions and authentication.
  *
- * @version January 2021
  * @author <a href="https://spencer.imbleau.com">Spencer Imbleau</a>
+ * @version January 2021
  */
 public class ChatTranslatorAuthPanel extends PluginPanel {
 
@@ -26,6 +26,7 @@ public class ChatTranslatorAuthPanel extends PluginPanel {
      * The help icon which links to instructions.
      */
     private static final ImageIcon HELP_ICON;
+
     static {
         final BufferedImage helpIcon = ImageUtil.getResourceStreamFromClass(ChatTranslatorPlugin.class, "/help.png");
         HELP_ICON = new ImageIcon(ImageUtil.resizeImage(helpIcon, 16, 16));
@@ -34,7 +35,7 @@ public class ChatTranslatorAuthPanel extends PluginPanel {
     /**
      * The authentication button.
      */
-    private ChatTranslatorAuthenticateButton authenticateButton;
+    public final ChatTranslatorAuthenticateButton authenticateButton;
 
     /**
      * Construct the authentication panel.
@@ -42,12 +43,12 @@ public class ChatTranslatorAuthPanel extends PluginPanel {
      * @param authenticateButton - the child authentication button
      */
     @Inject
-    public ChatTranslatorAuthPanel(ChatTranslatorAuthenticateButton authenticateButton){
+    public ChatTranslatorAuthPanel(ChatTranslatorAuthenticateButton authenticateButton) {
         super();
         this.authenticateButton = authenticateButton;
 
         // Border insets
-        setBorder(new EmptyBorder(0,0,0,0));
+        setBorder(new EmptyBorder(0, 0, 0, 0));
         setBackground(ColorScheme.DARK_GRAY_COLOR);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 
@@ -59,11 +60,11 @@ public class ChatTranslatorAuthPanel extends PluginPanel {
         // Create instructions label
         JLabel instructions = new JLabel();
         instructions.setForeground(Color.GRAY);
-        instructions.setText("<html><body style ='text-align:left'><h1 style='text-align:center'>Instructions</h1>" +
-                "<p>You will need your own Google Cloud Platform account with a service account to use the " +
-                "Cloud Translate API. Once you have credentials, press the button below to upload credentials and authenticate." +
-                "</p><br><p>Step-by-step instructions can be accessed via clicking the help icon to the left." +
-                "</p></body></html>");
+        instructions.setText("<html><body style ='text-align:left'><h1 style='text-align:center'>Instructions</h1>"
+                + "<p>You will need access to the Google Translate API under Google Cloud Platform. "
+                + "Once you have credentials, press the button below to upload your credentials and authenticate."
+                + "</p><br><p>For step-by-step instructions, click the help icon to the left."
+                + "</p></body></html>");
 
         // Create instructions help icon button
         JButton helpIcon = new JButton();

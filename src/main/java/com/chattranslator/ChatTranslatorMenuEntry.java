@@ -27,7 +27,7 @@ public class ChatTranslatorMenuEntry extends MenuEntry {
     /**
      * The plugin configuration
      */
-    private ChatTranslatorConfig config;
+    private final ChatTranslatorConfig config;
 
     /**
      * The code of the source language used, e.g. en

@@ -19,12 +19,12 @@ public class ChatTranslatorBodyPanel extends PluginPanel {
     /**
      * The panel which allows the user to authenticate.
      */
-    private ChatTranslatorAuthPanel authPanel;
+    public final ChatTranslatorAuthPanel authPanel;
 
     /**
      * The panel which allows the user to configure language translation options.
      */
-    private ChatTranslatorLanguagePanel langPanel;
+    public final ChatTranslatorLanguagePanel langPanel;
 
     /**
      * Construct the body panel.
@@ -59,17 +59,4 @@ public class ChatTranslatorBodyPanel extends PluginPanel {
         add(scrollPane, BorderLayout.CENTER);
     }
 
-    /**
-     * @return the child authentication panel
-     */
-    public ChatTranslatorAuthPanel getAuthPanel() {
-        return this.authPanel;
-    }
-
-    /**
-     * @return the child language panel
-     */
-    public ChatTranslatorLanguagePanel getLangPanel() {
-        return this.langPanel;
-    }
 }

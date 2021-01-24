@@ -17,8 +17,8 @@ import java.util.stream.Stream;
 /**
  * The language panel for the Chat Translator. This holds options for the user to change their source and target language currently.
  *
- * @version January 2021
  * @author <a href="https://spencer.imbleau.com">Spencer Imbleau</a>
+ * @version January 2021
  */
 @Slf4j
 public class ChatTranslatorLanguagePanel extends PluginPanel {
@@ -26,17 +26,17 @@ public class ChatTranslatorLanguagePanel extends PluginPanel {
     /**
      * The plugin configuration.
      */
-    private ChatTranslatorConfig config;
+    private final ChatTranslatorConfig config;
 
     /**
-     * The source language combobox.
+     * The source language combo box.
      */
-    private JComboBox sourceLanguageComboBox;
+    private final JComboBox<LanguageComboItem> sourceLanguageComboBox;
 
     /**
-     * The target language combobox.
+     * The target language combo box.
      */
-    private JComboBox targetLanguageComboBox;
+    private final JComboBox<LanguageComboItem> targetLanguageComboBox;
 
     /**
      * Construct the language options panel.
@@ -62,8 +62,8 @@ public class ChatTranslatorLanguagePanel extends PluginPanel {
         sourceLangLabel.setForeground(Color.WHITE);
         sourceLangLabel.setText("Source Language: ");
 
-        // Create language options combobox
-        sourceLanguageComboBox = new JComboBox();
+        // Create language options combo box
+        sourceLanguageComboBox = new JComboBox<>();
         sourceLanguageComboBox.setPreferredSize(new Dimension(100, 20));
         sourceLanguageComboBox.setMinimumSize(new Dimension(100, 20));
         sourceLanguageComboBox.setMaximumSize(new Dimension(100, 20));
@@ -81,8 +81,8 @@ public class ChatTranslatorLanguagePanel extends PluginPanel {
         targetLangLabel.setForeground(Color.WHITE);
         targetLangLabel.setText("Target Language: ");
 
-        // Create language options combobox
-        targetLanguageComboBox = new JComboBox();
+        // Create language options combo box
+        targetLanguageComboBox = new JComboBox<>();
         targetLanguageComboBox.setPreferredSize(new Dimension(100, 20));
         targetLanguageComboBox.setMinimumSize(new Dimension(100, 20));
         targetLanguageComboBox.setMaximumSize(new Dimension(100, 20));
@@ -174,9 +174,9 @@ public class ChatTranslatorLanguagePanel extends PluginPanel {
      * Helper method to load a language code into a combo box.
      *
      * @param languageCode - the language code to load in, e.g. 'en' (English)
-     * @param comboBox     - the language combobox
+     * @param comboBox     - the language combo box
      */
-    private void setLanguage(String languageCode, JComboBox comboBox) {
+    private void setLanguage(String languageCode, JComboBox<LanguageComboItem> comboBox) {
         if (languageCode == null) {
             log.warn("Could not load null language.");
             return;
@@ -184,14 +184,12 @@ public class ChatTranslatorLanguagePanel extends PluginPanel {
 
         boolean loaded = false;
         for (int i = 0; i < comboBox.getItemCount(); i++) {
-            Object item = comboBox.getItemAt(i);
-            if (item instanceof LanguageComboItem) {
-                Language lang = ((LanguageComboItem) item).language;
-                if (lang.getCode().equalsIgnoreCase(languageCode)) {
-                    comboBox.setSelectedItem(item);
-                    loaded = true;
-                    break;
-                }
+            LanguageComboItem item = comboBox.getItemAt(i);
+            Language lang = item.language;
+            if (lang.getCode().equalsIgnoreCase(languageCode)) {
+                comboBox.setSelectedItem(item);
+                loaded = true;
+                break;
             }
         }
         if (!loaded) {
@@ -202,8 +200,8 @@ public class ChatTranslatorLanguagePanel extends PluginPanel {
     /**
      * An combo box item which stores a Language from Google's API
      */
-    class LanguageComboItem {
-        private Language language;
+    static class LanguageComboItem {
+        private final Language language;
 
         public LanguageComboItem(Language language) {
             this.language = language;

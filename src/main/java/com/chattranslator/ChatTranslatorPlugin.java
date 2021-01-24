@@ -4,6 +4,7 @@ import com.chattranslator.ex.GoogleException;
 import com.chattranslator.ui.ChatTranslatorPanel;
 import com.google.inject.Provides;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 
 import lombok.extern.slf4j.Slf4j;
@@ -34,8 +35,8 @@ import java.util.stream.Stream;
 /**
  * A plugin to translate chat text.
  *
- * @version January 2021
  * @author <a href="https://spencer.imbleau.com">Spencer Imbleau</a>
+ * @version January 2021
  */
 @Slf4j
 @PluginDescriptor(
@@ -84,6 +85,7 @@ public class ChatTranslatorPlugin extends Plugin {
      */
     @Inject
     private ChatTranslatorConfig config;
+
     @Provides
     private ChatTranslatorConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(ChatTranslatorConfig.class);
@@ -124,7 +126,7 @@ public class ChatTranslatorPlugin extends Plugin {
     }
 
     @Override
-    protected void shutDown() throws Exception {
+    protected void shutDown() {
         // Remove the nav button from the toolbar
         this.clientToolbar.removeNavigation(this.navButton);
     }
@@ -136,9 +138,7 @@ public class ChatTranslatorPlugin extends Plugin {
 
     @Subscribe
     public void onMenuOpened(MenuOpened event) {
-        if (!this.config.rightClickChat()) {
-            return;
-        }
+        if (!this.config.rightClickChat()) return;
 
         if (isHoveringChatBoxWidget()) {
             // If the user isn't hovering their chat buffer or a message, end here
@@ -151,19 +151,21 @@ public class ChatTranslatorPlugin extends Plugin {
             this.menuEntry = new ChatTranslatorMenuEntry(config);
             menuEntry.setType(MenuAction.RUNELITE.getId());
             menuEntry.setTarget("");
-            ChatLineData message;
+            ChatLineData chatData = null;
             if (isHoveringChatInputWidget()) {
-                message = getLocalPlayerChatLineData();
-                menuEntry.setChatLineData(message);
+                chatData = getLocalPlayerChatLineData();
+                menuEntry.setChatLineData(chatData);
                 menuEntry.setSourceLanguage(this.config.lastSourceLanguageCode(), this.config.lastSourceLanguageName());
                 menuEntry.setTargetLanguage(this.config.lastTargetLanguageCode(), this.config.lastTargetLanguageName());
-                client.setMenuEntries(ArrayUtils.insert(1, client.getMenuEntries(), menuEntry));
             } else if (isHoveringChatLineWidget()) {
-                message = getHoveredChatLineData();
-                menuEntry.setChatLineData(message);
+                chatData = getHoveredChatLineData();
+                menuEntry.setChatLineData(chatData);
                 menuEntry.setTargetLanguage(this.config.lastSourceLanguageCode(), this.config.lastSourceLanguageName());
-                client.setMenuEntries(ArrayUtils.insert(1, client.getMenuEntries(), menuEntry));
             }
+            if (chatData == null) {
+                return;
+            }
+            client.setMenuEntries(ArrayUtils.insert(1, client.getMenuEntries(), menuEntry));
         } else {
             this.menuEntry = null;
         }
@@ -258,6 +260,7 @@ public class ChatTranslatorPlugin extends Plugin {
      */
     private boolean isHoveringChatBoxWidget() {
         Widget chatBoxWidget = this.client.getWidget(WidgetInfo.CHATBOX);
+        if (chatBoxWidget == null) return false;
         return isMouseOverWidget(chatBoxWidget);
     }
 
@@ -268,6 +271,7 @@ public class ChatTranslatorPlugin extends Plugin {
      */
     private boolean isHoveringChatInputWidget() {
         Widget chatInputWidget = this.client.getWidget(WidgetInfo.CHATBOX_INPUT);
+        if (chatInputWidget == null) return false;
         return isMouseOverWidget(chatInputWidget);
     }
 
@@ -278,67 +282,76 @@ public class ChatTranslatorPlugin extends Plugin {
      */
     private boolean isHoveringChatLineWidget() {
         Widget chatLinesWidget = this.client.getWidget(WidgetInfo.CHATBOX_MESSAGE_LINES);
+        if (chatLinesWidget == null) return false;
         return isMouseOverWidget(chatLinesWidget);
     }
 
     /**
      * Helper method to return the chat line data from the message underneath the mouse
      *
-     * @return chat line data from the message underneath the mouse, false otherwise
+     * @return chat line data from the message underneath the mouse, or null on error
      */
-    private ChatLineData getHoveredChatLineData() {
-        Widget chatBox = this.client.getWidget(WidgetInfo.CHATBOX_MESSAGE_LINES);
-        // This magic will get all of the chat lines in the chat box and filter it down to the chat line hovered over
-        // by the mouse and then remove all formatting and join the "username:" widget text to the " message" widget text.
-        String chatLine = Stream.of(chatBox.getChildren())
-                .filter(widget -> !widget.isHidden())
-                .filter(widget -> widget.getId() < WidgetInfo.CHATBOX_FIRST_MESSAGE.getId())
-                .filter(widget -> {
-                    int mouseY = this.client.getMouseCanvasPosition().getY();
-                    return (mouseY >= widget.getBounds().getMinY() && mouseY <= widget.getBounds().getMaxY());
-                })
-                .map(Widget::getText)
-                .map(Text::removeTags)
-                .collect(Collectors.joining(" "));
+    private @Nullable
+    ChatLineData getHoveredChatLineData() {
+        try {
+            Widget chatBox = this.client.getWidget(WidgetInfo.CHATBOX_MESSAGE_LINES);
+            // This magic will get all of the chat lines in the chat box and filter it down to the chat line hovered over
+            // by the mouse and then remove all formatting and join the "username:" widget text to the " message" widget text.
+            String chatLine = Stream.of(chatBox.getChildren())
+                    .filter(widget -> !widget.isHidden())
+                    .filter(widget -> widget.getId() < WidgetInfo.CHATBOX_FIRST_MESSAGE.getId())
+                    .filter(widget -> {
+                        int mouseY = this.client.getMouseCanvasPosition().getY();
+                        return (mouseY >= widget.getBounds().getMinY() && mouseY <= widget.getBounds().getMaxY());
+                    })
+                    .map(Widget::getText)
+                    .map(Text::removeTags)
+                    .collect(Collectors.joining(" "));
 
-        // Regex matcher buffer
-        Matcher matcher;
+            // Regex matcher buffer
+            Matcher matcher;
 
-        // Remove Friends Chat heading, i.e. '[Friends Chat] Nuzzler: Hey' -> 'Nuzzler: Hey'
-        Pattern fcPattern = Pattern.compile("^\\[.+\\] ");
-        String fc = null;
-        matcher = fcPattern.matcher(chatLine);
-        if (matcher.find()) {
-            fc = matcher.group();
-            chatLine = chatLine.replace(fc, ""); // Remove FC heading
-            fc = fc.substring(1, fc.length() - 2); // Remove the '[' and '] ' which surround the FC name
+            // Remove Friends Chat heading, i.e. '[Friends Chat] Nuzzler: Hey' -> 'Nuzzler: Hey'
+            Pattern fcPattern = Pattern.compile("^\\[.+\\] ");
+            matcher = fcPattern.matcher(chatLine);
+            if (matcher.find()) {
+                String fc = matcher.group();
+                chatLine = chatLine.replace(fc, ""); // Remove FC heading
+            }
+
+            // Capture username
+            Pattern rsnPattern = Pattern.compile("^.+: ");
+            String username = null;
+            matcher = rsnPattern.matcher(chatLine);
+            if (matcher.find()) {
+                username = matcher.group();
+                chatLine = chatLine.replace(username, ""); // Remove FC heading
+                username = username.substring(0, username.length() - 2); // Remove the ': ' at the end
+            }
+
+            return new ChatLineData(username, chatLine, false);
+        } catch (Exception e) {
+            return null;
         }
-
-        // Capture username
-        Pattern rsnPattern = Pattern.compile("^.+: ");
-        String username = null;
-        matcher = rsnPattern.matcher(chatLine);
-        if (matcher.find()) {
-            username = matcher.group();
-            chatLine = chatLine.replace(username, ""); // Remove FC heading
-            username = username.substring(0, username.length() - 2); // Remove the ': ' at the end
-        }
-
-        return new ChatLineData(username, chatLine, false);
     }
 
     /**
      * Helper method to return the chat line data in the local player's chat input
      *
-     * @return chat line data from the local player
+     * @return chat line data from the local player, or null on error
      */
-    private ChatLineData getLocalPlayerChatLineData() {
-        Widget chatBuffer = this.client.getWidget(WidgetInfo.CHATBOX_INPUT);
-        String chatLine = Text.removeTags(chatBuffer.getText());
-        String rsn = this.client.getLocalPlayer().getName();
-        chatLine = chatLine.replace(rsn + ": ", ""); // Remove username
-        chatLine = chatLine.substring(0, chatLine.length() - 1); // Remove the '*' at the end
-        return new ChatLineData(rsn, chatLine, true);
+    private @Nullable
+    ChatLineData getLocalPlayerChatLineData() {
+        try {
+            String rsn = this.client.getLocalPlayer().getName();
+            Widget chatBuffer = this.client.getWidget(WidgetInfo.CHATBOX_INPUT);
+            String chatLine = Text.removeTags(chatBuffer.getText());
+            chatLine = chatLine.replace(rsn + ": ", ""); // Remove username
+            chatLine = chatLine.substring(0, chatLine.length() - 1); // Remove the '*' at the end
+            return new ChatLineData(rsn, chatLine, true);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -349,31 +362,34 @@ public class ChatTranslatorPlugin extends Plugin {
      * @return a {@link ChatMessageType} to reach the player in their given filter
      */
     private ChatMessageType getVisibleChatMessageType() {
-        Widget chatBox = this.client.getWidget(WidgetInfo.CHATBOX_BUTTONS);
+        try {
+            Widget chatBox = this.client.getWidget(WidgetInfo.CHATBOX_BUTTONS);
 
-        List<Widget> chatBuckets = Stream.of(chatBox.getStaticChildren())
-                .map(Widget::getStaticChildren)
-                .flatMap(Arrays::stream)
-                .map(Widget::getStaticChildren)
-                .flatMap(Arrays::stream)
-                .filter(widget -> !widget.isHidden())
-                .filter(widget -> widget.getSpriteId() == 1022)
-                .collect(Collectors.toList());
+            List<Widget> chatBuckets = Stream.of(chatBox.getStaticChildren())
+                    .map(Widget::getStaticChildren)
+                    .flatMap(Arrays::stream)
+                    .map(Widget::getStaticChildren)
+                    .flatMap(Arrays::stream)
+                    .filter(widget -> !widget.isHidden())
+                    .filter(widget -> widget.getSpriteId() == 1022)
+                    .collect(Collectors.toList());
 
-        if (chatBuckets.size() > 0) {
-            Widget activePebble = chatBuckets.get(0);
-            Widget tabPebble = activePebble.getParent().getParent();
-            if (this.client.getWidget(WidgetInfo.CHATBOX_TAB_CLAN).equals(tabPebble)) {
-                return ChatMessageType.FRIENDSCHAT;
-            } else if (this.client.getWidget(WidgetInfo.CHATBOX_TAB_PRIVATE).equals(tabPebble)) {
-                return ChatMessageType.PRIVATECHAT;
-            } else if (this.client.getWidget(WidgetInfo.CHATBOX_TAB_PUBLIC).equals(tabPebble)) {
-                return ChatMessageType.PUBLICCHAT;
-            } else if (this.client.getWidget(WidgetInfo.CHATBOX_TAB_TRADE).equals(tabPebble)) {
-                return ChatMessageType.TRADE;
+            if (chatBuckets.size() > 0) {
+                Widget activePebble = chatBuckets.get(0);
+                Widget tabPebble = activePebble.getParent().getParent();
+                if (this.client.getWidget(WidgetInfo.CHATBOX_TAB_CLAN).equals(tabPebble)) {
+                    return ChatMessageType.FRIENDSCHAT;
+                } else if (this.client.getWidget(WidgetInfo.CHATBOX_TAB_PRIVATE).equals(tabPebble)) {
+                    return ChatMessageType.PRIVATECHAT;
+                } else if (this.client.getWidget(WidgetInfo.CHATBOX_TAB_PUBLIC).equals(tabPebble)) {
+                    return ChatMessageType.PUBLICCHAT;
+                } else if (this.client.getWidget(WidgetInfo.CHATBOX_TAB_TRADE).equals(tabPebble)) {
+                    return ChatMessageType.TRADE;
+                }
             }
+        } catch (Exception e) {
+            // Do nothing
         }
-
         // Default to a game message
         return ChatMessageType.GAMEMESSAGE;
     }
@@ -388,6 +404,7 @@ public class ChatTranslatorPlugin extends Plugin {
             return;
         }
         Widget chatBuffer = this.client.getWidget(WidgetInfo.CHATBOX_INPUT);
+        if (chatBuffer == null) return;
         String rawChatBuffer = chatBuffer.getText();
         String chatLine = getLocalPlayerChatLineData().getChatLine();
         chatBuffer.setText(rawChatBuffer.replace(chatLine, translation));

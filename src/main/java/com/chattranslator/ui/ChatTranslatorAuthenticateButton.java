@@ -41,12 +41,12 @@ public class ChatTranslatorAuthenticateButton extends JButton implements Runnabl
     /**
      * The chat translator.
      */
-    private ChatTranslator translator;
+    private final ChatTranslator translator;
 
     /**
      * The plugin itself.
      */
-    private ChatTranslatorPlugin plugin;
+    private final ChatTranslatorPlugin plugin;
 
     /**
      * The authentication file chosen by the user.

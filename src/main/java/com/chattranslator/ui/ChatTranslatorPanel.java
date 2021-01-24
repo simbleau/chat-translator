@@ -20,12 +20,12 @@ public class ChatTranslatorPanel extends PluginPanel {
     /**
      * The header content panel. This holds the title and BuyMeACoffee button.
      */
-    private ChatTranslatorHeaderPanel headerPanel;
+    public final ChatTranslatorHeaderPanel headerPanel;
 
     /**
      * The body content panel.
      */
-    private ChatTranslatorBodyPanel bodyPanel;
+    public final ChatTranslatorBodyPanel bodyPanel;
 
     /**
      * Construct the plugin panel.
@@ -55,14 +55,14 @@ public class ChatTranslatorPanel extends PluginPanel {
      * Show the language options panel.
      */
     public void showLanguagePanel() {
-        this.bodyPanel.getLangPanel().setVisible(true);
+        this.bodyPanel.langPanel.setVisible(true);
     }
 
     /**
      * Hide the language options panel.
      */
     public void hideLanguagePanel() {
-        this.bodyPanel.getLangPanel().setVisible(false);
+        this.bodyPanel.langPanel.setVisible(false);
     }
 
     /**
@@ -71,14 +71,14 @@ public class ChatTranslatorPanel extends PluginPanel {
      * @param languages - the supported languages for translation
      */
     public void enableLanguagePanel(List<Language> languages) {
-        this.bodyPanel.getLangPanel().enableOptions(languages);
+        this.bodyPanel.langPanel.enableOptions(languages);
     }
 
     /**
      * Disable the language options panel.
      */
     public void disableLanguagePanel() {
-        this.bodyPanel.getLangPanel().disableOptions();
+        this.bodyPanel.langPanel.disableOptions();
     }
 
     /**
@@ -87,7 +87,7 @@ public class ChatTranslatorPanel extends PluginPanel {
      * @param languageCode - the source language code, e.g. 'en' (English)
      */
     public void loadSourceLanguage(String languageCode) {
-        this.bodyPanel.getLangPanel().setSourceLanguage(languageCode);
+        this.bodyPanel.langPanel.setSourceLanguage(languageCode);
     }
 
     /**
@@ -96,7 +96,7 @@ public class ChatTranslatorPanel extends PluginPanel {
      * @param languageCode - the source language code, e.g. 'da' (Danish)
      */
     public void loadTargetLanguage(String languageCode) {
-        this.bodyPanel.getLangPanel().setTargetLanguage(languageCode);
+        this.bodyPanel.langPanel.setTargetLanguage(languageCode);
     }
 
 }
