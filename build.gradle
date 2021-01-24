@@ -27,10 +27,7 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
 
-    implementation platform('com.google.cloud:libraries-bom:16.2.1') {
-        exclude group: 'com.google.guava'
-    }
-    compile('com.google.cloud:google-cloud-translate') {
+    compile(group: 'com.google.cloud', name: 'google-cloud-translate', version: '1.95.6') {
         exclude group: 'com.google.guava'
     }
 }
