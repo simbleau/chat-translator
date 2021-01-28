@@ -1,12 +1,11 @@
 package com.chattranslator.ui;
 
-import com.google.cloud.translate.Language;
+import com.chattranslator.data.GetSupportedLanguagesResponseList;
 import com.google.inject.Inject;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 
 import javax.swing.border.EmptyBorder;
-import java.util.List;
 import java.awt.*;
 
 /**
@@ -70,7 +69,7 @@ public class ChatTranslatorPanel extends PluginPanel {
      *
      * @param languages - the supported languages for translation
      */
-    public void enableLanguagePanel(List<Language> languages) {
+    public void enableLanguagePanel(GetSupportedLanguagesResponseList languages) {
         this.bodyPanel.langPanel.enableOptions(languages);
     }
 

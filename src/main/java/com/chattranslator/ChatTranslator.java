@@ -1,28 +1,32 @@
 package com.chattranslator;
 
+import com.chattranslator.data.GetSupportedLanguagesResponseLanguage;
+import com.chattranslator.data.GetSupportedLanguagesResponseList;
+import com.chattranslator.data.TranslateTextResponseList;
+import com.chattranslator.data.TranslateTextResponseTranslation;
 import com.chattranslator.ex.GoogleAPIException;
 import com.chattranslator.ex.GoogleAuthenticationException;
 import com.chattranslator.ex.GoogleException;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.translate.Language;
-import com.google.cloud.translate.Translate;
-import com.google.cloud.translate.TranslateOptions;
-import com.google.cloud.translate.Translation;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.*;
 import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.io.*;
-import java.util.List;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * A utility class to use the Google Translate API.
  *
- * @version January 2021
  * @author <a href="https://spencer.imbleau.com">Spencer Imbleau</a>
+ * @version January 2021
  */
 @Singleton
 @Slf4j
@@ -35,14 +39,14 @@ public class ChatTranslator {
     private ChatTranslatorConfig config;
 
     /**
-     * A buffer which holds the service used for translation, which is loaded after successful authentication.
+     * An HTTP Client to access the Google Translate API.
      */
-    private Translate translate = null;
+    private OkHttpClient client = new OkHttpClient();
 
     /**
      * The list of supported languages by Google Translate API.
      */
-    private List<Language> supportedLanguages;
+    private GetSupportedLanguagesResponseList supportedLanguages = null;
 
     /**
      * Whether the user is authenticated.
@@ -60,141 +64,122 @@ public class ChatTranslator {
      * Un-authenticate your credentials. This clears saved config and any session data used for chat translation.
      */
     public void unauthenticate() {
-        config.lastCredentials(null); // Clear config
+        config.apiKey(null); // Clear config
         this.authenticated = false;
-        this.translate = null;
     }
 
     /**
-     * Authenticate using credential data.
+     * Helper method to authenticate using an API Key.
      *
-     * @param credentialData - the data used for authentication
-     * @throws GoogleAuthenticationException on invalid credentials
-     * @throws GoogleAPIException            on failure to receive supported languages
+     * @param apiKey - the data used for authentication
+     * @throws GoogleAuthenticationException on authentication failure
      */
-    public void authenticate(String credentialData) throws GoogleAuthenticationException, GoogleAPIException {
+    public void authenticate(String apiKey) throws GoogleAuthenticationException {
         try {
-            InputStream credentialsData = new ByteArrayInputStream(credentialData.getBytes());
-            GoogleCredentials credentials = GoogleCredentials.fromStream(credentialsData);
-            TranslateOptions translateOptions = TranslateOptions.newBuilder().setCredentials(credentials).build();
-            this.translate = translateOptions.getService();
+            log.debug("Google Cloud Platform: Sending request for supported languages");
+            final Request req = new Request.Builder()
+                    .method("GET", null)
+                    .url("https://translation.googleapis.com/language/translate/v2/languages?target=en&key=" + apiKey)
+                    .build();
 
-            log.info("Chat Translator authentication successful."
-                    + "\n\tHost: " + translateOptions.getHost()
-                    + "\n\tVersion: " + translateOptions.getLibraryVersion()
-                    + "\n\tProject: " + translateOptions.getProjectId()
-                    + "\n\tApp Name: " + translateOptions.getApplicationName());
+            Response response = client.newCall(req).execute();
+            String responseSource = new String(response.body().bytes(), StandardCharsets.UTF_8);
+            log.debug("Response:\n" + responseSource);
+            log.debug("Google Cloud Platform: Received response");
+            if (response.code() != 200) {
+                throw new GoogleAuthenticationException("Google returned code " + response.code());
+            }
+
+            JsonParser parser = new JsonParser();
+            JsonObject dom = parser.parse(responseSource).getAsJsonObject();
+            JsonElement data = dom.get("data");
+            this.supportedLanguages = GetSupportedLanguagesResponseList.fromJSON(data);
+            log.debug("Supported languages:\n" +
+                    Stream.of(supportedLanguages.languages)
+                            .map(lang -> "\t" + lang.language + " - " + lang.name)
+                            .collect(Collectors.joining("\n")));
+
+            config.apiKey(apiKey);
+            this.authenticated = true;
+            log.info("Chat Translator authentication successful.");
         } catch (Exception e) {
             throw new GoogleAuthenticationException("Invalid Google Cloud Platform service account credentials", e);
         }
-
-        try {
-            this.supportedLanguages = translate.listSupportedLanguages();
-
-            log.info("Supported languages:\n"
-                    + supportedLanguages.stream()
-                    .map(lang -> "\t" + lang.toString())
-                    .collect(Collectors.joining("\n")));
-        } catch (Exception e) {
-            throw new GoogleAPIException("Failed to receive supported languages after successful authentication", e);
-        }
-
-        config.lastCredentials(credentialData); // Save config
-        this.authenticated = true;
-    }
-
-    /**
-     * Authenticate using a file
-     *
-     * @param authFile - the file used for authentication
-     * @throws GoogleAuthenticationException on invalid credentials
-     * @throws GoogleAPIException            on failure to receive supported languages
-     */
-    public void authenticate(@Nonnull File authFile) throws GoogleAuthenticationException, GoogleAPIException {
-        String credentialsData;
-        try {
-            InputStream credentialsStream = new FileInputStream(authFile);
-            credentialsData = new BufferedReader(new InputStreamReader(credentialsStream)).lines().collect(Collectors.joining());
-        } catch (Exception e) {
-            throw new GoogleAuthenticationException("Could not use the credential file: " + authFile.getAbsolutePath(), e);
-        }
-        authenticate(credentialsData);
     }
 
     /**
      * Authenticate using previously saved configuration data.
+     *
+     * @throws GoogleAuthenticationException on authentication failure
      */
-    public void authenticateFromConfig() throws GoogleAuthenticationException, GoogleAPIException {
-        if (this.config.lastCredentials() == null) {
+    public void authenticateFromConfig() throws GoogleAuthenticationException {
+        if (this.config.apiKey() == null) {
             return;
         }
-        authenticate(config.lastCredentials());
-    }
-
-    /**
-     * Helper method used to translate text.
-     *
-     * @param text    - the text to translate
-     * @param options - the options for translation
-     * @return the translated text
-     * @throws GoogleException on call failure
-     */
-    private String translate(String text, Translate.TranslateOption... options) throws GoogleException {
-        if (!authenticated) {
-            throw new GoogleAuthenticationException("You are not authenticated for Chat Translation.");
-        }
-        try {
-            Translation translation = this.translate.translate(text, options);
-            return StringEscapeUtils.unescapeHtml4(translation.getTranslatedText());
-        } catch (Exception e) {
-            throw new GoogleAPIException("API call failed. Try again or re-authenticate.");
-        }
+        authenticate(config.apiKey());
     }
 
     /**
      * Translate text from a source language to a target language.
      *
-     * @param text               - the text to translate
-     * @param sourceLanguageCode - the source language's code, e.g. 'en' (English)
-     * @param targetLanguageCode - the target language' code, e.g. 'da' (Danish)
+     * @param text           - the text to translate
+     * @param sourceLanguage - the source language's code, e.g. 'en' (English)
+     * @param targetLanguage - the target language' code, e.g. 'da' (Danish)
      * @return the translated text
      * @throws GoogleException on call failure
      */
-    private String translate(String text, String sourceLanguageCode, String targetLanguageCode) throws GoogleException {
-        Translate.TranslateOption[] options = {
-                Translate.TranslateOption.sourceLanguage(sourceLanguageCode),
-                Translate.TranslateOption.targetLanguage(targetLanguageCode)
-        };
-        return translate(text, options);
-    }
+    public TranslateTextResponseList translate(@Nonnull String text, @Nullable String sourceLanguage, @Nonnull String targetLanguage) throws GoogleException {
+        if (!authenticated) {
+            throw new GoogleAuthenticationException("You are not authenticated for Chat Translation.");
+        }
+        try {
+            // Build request body
+            JsonObject requestJson = new JsonObject();
+            if (sourceLanguage != null) {
+                requestJson.addProperty("source", sourceLanguage);
+            }
+            requestJson.addProperty("target", targetLanguage);
+            requestJson.addProperty("q", text);
+            log.debug("Request body: " + requestJson.toString());
+            RequestBody requestBody = RequestBody.create(
+                    MediaType.parse("application/json"), requestJson.toString());
 
-    /**
-     * Translate text from an automatically detected language to a target language.
-     *
-     * @param text               - the text to translate
-     * @param targetLanguageCode - the target language' code, e.g. 'da' (Danish)
-     * @return the translated text
-     * @throws GoogleException on call failure
-     */
-    private String translate(String text, String targetLanguageCode) throws GoogleException {
-        Translate.TranslateOption[] options = {
-                Translate.TranslateOption.targetLanguage(targetLanguageCode)
-        };
-        return translate(text, options);
-    }
+            // Build request
+            log.debug("Google Cloud Platform: Sending request for translation");
+            final Request req = new Request.Builder()
+                    .method("POST", requestBody)
+                    .header("Content-Type", "application/json")
+                    .url("https://translation.googleapis.com/language/translate/v2?key=" + config.apiKey())
+                    .build();
 
-    /**
-     * Translate text from a {@link ChatTranslatorMenuEntry}.
-     *
-     * @param menuEntry - the menu entry to translate
-     * @return the translated text
-     * @throws GoogleException on call failure
-     */
-    public String translate(ChatTranslatorMenuEntry menuEntry) throws GoogleException {
-        if (menuEntry.getSourceLanguageCode() == null) {
-            return translate(menuEntry.getChatLineData().getChatLine(), menuEntry.getTargetLanguageCode());
-        } else {
-            return translate(menuEntry.getChatLineData().getChatLine(), menuEntry.getSourceLanguageCode(), menuEntry.getTargetLanguageCode());
+            Response response = client.newCall(req).execute();
+            String responseSource = new String(response.body().bytes(), StandardCharsets.UTF_8);
+            log.debug("Response:\n" + responseSource);
+            log.debug("Google Cloud Platform: Received response");
+            if (response.code() != 200) {
+                throw new GoogleAuthenticationException("Google returned code " + response.code());
+            }
+
+            JsonParser parser = new JsonParser();
+            JsonObject dom = parser.parse(responseSource).getAsJsonObject();
+            JsonElement data = dom.get("data");
+
+            TranslateTextResponseList translationList;
+            if (sourceLanguage == null) {
+                translationList = TranslateTextResponseList.fromJSONImplicit(data);
+            } else {
+                translationList = TranslateTextResponseList.fromJSONExplicit(data, sourceLanguage);
+            }
+
+            if (!translationList.isEmpty()) {
+                log.debug("Translations returned:\n" +
+                        Stream.of(translationList.translations)
+                                .map(translation -> "\t" + translation.detectedSourceLanguage + " - " + translation.translatedText)
+                                .collect(Collectors.joining("\n")));
+            }
+            return translationList;
+        } catch (Exception e) {
+            throw new GoogleAPIException("API call failed. Try again or re-authenticate.", e);
         }
     }
 
@@ -204,10 +189,10 @@ public class ChatTranslator {
      * @return a list of supported translation languages
      * @throws GoogleException on call failure
      */
-    public List<Language> getSupportedLanguages() throws GoogleException {
+    public GetSupportedLanguagesResponseList getSupportedLanguages() throws GoogleException {
         if (authenticated) {
             return this.supportedLanguages;
-        } else {
+        } else { ;
             throw new GoogleAuthenticationException("You are not authenticated for Chat Translation.");
         }
     }

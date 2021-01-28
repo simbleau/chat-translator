@@ -1,7 +1,11 @@
 package com.chattranslator;
 
+import com.chattranslator.data.TranslateTextResponseList;
+import com.chattranslator.data.TranslateTextResponseTranslation;
+import com.chattranslator.ex.GoogleAPIException;
 import com.chattranslator.ex.GoogleException;
 import com.chattranslator.ui.ChatTranslatorPanel;
+import com.google.common.base.Charsets;
 import com.google.inject.Provides;
 
 import javax.annotation.Nullable;
@@ -25,6 +29,7 @@ import net.runelite.client.util.Text;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.awt.image.BufferedImage;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -94,7 +99,7 @@ public class ChatTranslatorPlugin extends Plugin {
     @Override
     protected void startUp() throws Exception {
         //If we have credentials, attempt to authenticate now.
-        if (this.config.lastCredentials() != null) {
+        if (this.config.apiKey() != null) {
             try {
                 this.translator.authenticateFromConfig();
             } catch (GoogleException e) {
@@ -138,7 +143,7 @@ public class ChatTranslatorPlugin extends Plugin {
 
     @Subscribe
     public void onMenuOpened(MenuOpened event) {
-        if (!this.config.rightClickChat()) return;
+        if (!this.config.isStandardTranslationEnabled()) return;
 
         if (isHoveringChatBoxWidget()) {
             // If the user isn't hovering their chat buffer or a message, end here
@@ -174,64 +179,87 @@ public class ChatTranslatorPlugin extends Plugin {
     @Subscribe
     public void onMenuOptionClicked(MenuOptionClicked event) {
         if (event.getMenuAction() == MenuAction.RUNELITE && event.getMenuOption().startsWith("Translate")) {
-            try {
-                log.debug("Translating " + this.menuEntry.getSourceLanguageCode() + " to " + this.menuEntry.getTargetLanguageCode());
-                String translation = this.translator.translate(this.menuEntry);
-                String languageCode = this.menuEntry.getTargetLanguageCode().toUpperCase();
-                log.debug("Translation Complete."
-                        + "\n\tBefore: '" + this.menuEntry.getChatLineData().getChatLine() + "'"
-                        + "\n\tAfter[" + languageCode + "]: " + translation + "'");
-
-                // Highlighting
-                if (this.config.isTranslationHighlighted()) {
-                    if (languageCode.equalsIgnoreCase(this.config.lastSourceLanguageCode())) {
-                        languageCode = ColorUtil.wrapWithColorTag(languageCode, this.config.sourceLangColor());
-                        translation = ColorUtil.wrapWithColorTag(translation, this.config.sourceLangColor());
-                    } else if (languageCode.equalsIgnoreCase(this.config.lastTargetLanguageCode())) {
-                        languageCode = ColorUtil.wrapWithColorTag(languageCode, this.config.targetLangColor());
-                        translation = ColorUtil.wrapWithColorTag(translation, this.config.targetLangColor());
+            new Thread(() -> {
+                try {
+                    log.info("Translating "
+                            + (menuEntry.getSourceLanguageCode() == null ? "auto" : menuEntry.getSourceLanguageCode())
+                            + " to "
+                            + menuEntry.getTargetLanguageCode());
+                    TranslateTextResponseList translationList = translator.translate(
+                            menuEntry.getChatLineData().getChatLine(),
+                            menuEntry.getSourceLanguageCode(),
+                            menuEntry.getTargetLanguageCode());
+                    if (translationList.isEmpty()) {
+                        throw new GoogleAPIException("No translations found");
                     }
-                }
+                    TranslateTextResponseTranslation translation = translationList.getBestTranslation(config.lastTargetLanguageCode());
+                    String translatedText = translation.translatedText;
+                    String fromLanguageCode = translation.detectedSourceLanguage.toUpperCase();
+                    String toLanguageCode = menuEntry.getTargetLanguageCode().toUpperCase();
+                    log.info("Translation Complete."
+                            + "\n\tBefore[" + fromLanguageCode + "]: '" + menuEntry.getChatLineData().getChatLine() + "'"
+                            + "\n\tAfter[" + toLanguageCode + "]: " + translatedText + "'");
 
-                // Send translation message
-                ChatMessageType messageFilter = getVisibleChatMessageType();
-                switch (messageFilter) {
-                    case PUBLICCHAT:
-                        sendTranslationToPublicChat(languageCode, translation, menuEntry);
-                        break;
-                    case FRIENDSCHAT:
-                        sendTranslationToFriendsChat(languageCode, translation, menuEntry);
-                        break;
-                    case TRADE:
-                        sendTranslationToTradeChat(languageCode, translation, menuEntry);
-                        break;
-                    case PRIVATECHAT:
-                        if (menuEntry.getChatLineData().isSaidByPlayer()) {
-                            if (menuEntry.getChatLineData().getRSN().startsWith("To ")) {
-                                menuEntry.getChatLineData().fixRsnForPMFilter(); // Change "From <rsn>" to "<rsn>" - This is specific to the Private Chat filter.
-                                sendTranslationToPrivateChatOut(languageCode, translation, menuEntry);
-                                break;
-                            } else if (menuEntry.getChatLineData().getRSN().startsWith("From ")) {
-                                menuEntry.getChatLineData().fixRsnForPMFilter(); // Change "From <rsn>" to "<rsn>" - This is specific to the Private Chat filter.
-                                sendTranslationToPrivateChat(languageCode, translation, menuEntry);
-                                break;
-                            }
+                    // Highlighting
+                    if (config.isTranslationHighlighted()) {
+                        // Color from language code
+                        if (fromLanguageCode.equalsIgnoreCase(config.lastSourceLanguageCode())) {
+                            fromLanguageCode = ColorUtil.wrapWithColorTag(fromLanguageCode, config.sourceLangColor());
+                        } else if (fromLanguageCode.equalsIgnoreCase(config.lastTargetLanguageCode())) {
+                            fromLanguageCode = ColorUtil.wrapWithColorTag(fromLanguageCode, config.targetLangColor());
                         }
-                        sendTranslationToPrivateChat(languageCode, translation, menuEntry);
-                        break;
-                    case GAMEMESSAGE:
-                    default:
-                        sendTranslationToGameChat(languageCode, translation, menuEntry);
-                        break;
-                }
 
-                // Preview the translation in chat input
-                if (menuEntry.getChatLineData().isSaidByLocalPlayer()) {
-                    previewTranslation(translation);
+                        // Color to language code
+                        if (toLanguageCode.equalsIgnoreCase(config.lastSourceLanguageCode())) {
+                            toLanguageCode = ColorUtil.wrapWithColorTag(toLanguageCode, config.sourceLangColor());
+                            translatedText = ColorUtil.wrapWithColorTag(translatedText, config.sourceLangColor());
+                        } else if (toLanguageCode.equalsIgnoreCase(config.lastTargetLanguageCode())) {
+                            toLanguageCode = ColorUtil.wrapWithColorTag(toLanguageCode, config.targetLangColor());
+                            translatedText = ColorUtil.wrapWithColorTag(translatedText, config.targetLangColor());
+                        }
+                    }
+
+                    // Send translation message
+                    ChatMessageType messageFilter = getVisibleChatMessageType();
+                    switch (messageFilter) {
+                        case PUBLICCHAT:
+                            sendTranslationToPublicChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
+                            break;
+                        case FRIENDSCHAT:
+                            sendTranslationToFriendsChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
+                            break;
+                        case TRADE:
+                            sendTranslationToTradeChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
+                            break;
+                        case PRIVATECHAT:
+                            if (menuEntry.getChatLineData().isSaidByPlayer()) {
+                                if (menuEntry.getChatLineData().getRSN().startsWith("To ")) {
+                                    menuEntry.getChatLineData().fixRsnForPMFilter(); // Change "From <rsn>" to "<rsn>" - This is specific to the Private Chat filter.
+                                    sendTranslationToPrivateChatOut(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
+                                    break;
+                                } else if (menuEntry.getChatLineData().getRSN().startsWith("From ")) {
+                                    menuEntry.getChatLineData().fixRsnForPMFilter(); // Change "From <rsn>" to "<rsn>" - This is specific to the Private Chat filter.
+                                    sendTranslationToPrivateChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
+                                    break;
+                                }
+                            }
+                            sendTranslationToPrivateChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
+                            break;
+                        case GAMEMESSAGE:
+                        default:
+                            sendTranslationToGameChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
+                            break;
+                    }
+
+                    // Preview the translation in chat input
+                    if (this.config.isPreviewingChatInput() && menuEntry.getChatLineData().isSaidByLocalPlayer()) {
+                        previewTranslation(translatedText);
+                    }
+                } catch (Exception e) {
+                    log.error("Translation exception: ", e);
+                    client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Translation Error: " + e.getMessage(), "");
                 }
-            } catch (Exception e) {
-                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Translation Error: " + e.getMessage(), "");
-            }
+            }).start();
         }
     }
 
@@ -407,15 +435,17 @@ public class ChatTranslatorPlugin extends Plugin {
         if (chatBuffer == null) return;
         String rawChatBuffer = chatBuffer.getText();
         String chatLine = getLocalPlayerChatLineData().getChatLine();
+        log.info("Previewing: " + translation);
+
         chatBuffer.setText(rawChatBuffer.replace(chatLine, translation));
     }
 
     /**
      * Helper method to send a translation message to public chat. This is done because a user is filtering that chat and we want them to see the translation under the same filter.
      */
-    private void sendTranslationToPublicChat(String languageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
+    private void sendTranslationToPublicChat(String fromLanguageCode, String toLanguageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
         client.addChatMessage(ChatMessageType.PUBLICCHAT,
-                "[" + languageCode + "] "
+                "[" + (this.config.isShowingDetectedLanguages() ? fromLanguageCode + "->" + toLanguageCode : toLanguageCode) + "] "
                         + (menuEntry.getChatLineData().isSaidByPlayer() ? menuEntry.getChatLineData().getRSN() : "GAME"),
                 "</col>" + translation,
                 "xx");
@@ -424,49 +454,49 @@ public class ChatTranslatorPlugin extends Plugin {
     /**
      * Helper method to send a translation message to private chat. This is done because a user is filtering that chat and we want them to see the translation under the same filter.
      */
-    private void sendTranslationToPrivateChat(String languageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
+    private void sendTranslationToPrivateChat(String fromLanguageCode, String toLanguageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
         client.addChatMessage(ChatMessageType.PRIVATECHAT,
                 (menuEntry.getChatLineData().isSaidByPlayer() ? menuEntry.getChatLineData().getRSN() : "GAME"),
-                "</col>[" + languageCode + "] " + translation,
+                "</col>[" + (this.config.isShowingDetectedLanguages() ? fromLanguageCode + "->" + toLanguageCode : toLanguageCode) + "] " + translation,
                 "");
     }
 
     /**
      * Helper method to send a translation message to public chat as the user. This is done because a user is filtering that chat and we want them to see the translation under the same filter.
      */
-    private void sendTranslationToPrivateChatOut(String languageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
+    private void sendTranslationToPrivateChatOut(String fromLanguageCode, String toLanguageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
         client.addChatMessage(ChatMessageType.PRIVATECHATOUT,
                 (menuEntry.getChatLineData().isSaidByPlayer() ? menuEntry.getChatLineData().getRSN() : "GAME"),
-                "</col>[" + languageCode + "] " + translation, "");
+                "</col>[" + (this.config.isShowingDetectedLanguages() ? fromLanguageCode + "->" + toLanguageCode : toLanguageCode) + "] " + translation, "");
     }
 
     /**
      * Helper method to send a translation message to trade chat. This is done because a user is filtering that chat and we want them to see the translation under the same filter.
      */
-    private void sendTranslationToTradeChat(String languageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
+    private void sendTranslationToTradeChat(String fromLanguageCode, String toLanguageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
         client.addChatMessage(ChatMessageType.TRADE,
                 "",
-                "[" + languageCode + "]" + (menuEntry.getChatLineData().isSaidByLocalPlayer() ? " " + menuEntry.getChatLineData().getRSN() + ": " : ": ") + translation,
+                "[" + (this.config.isShowingDetectedLanguages() ? fromLanguageCode + "->" + toLanguageCode : toLanguageCode) + "]" + (menuEntry.getChatLineData().isSaidByLocalPlayer() ? " " + menuEntry.getChatLineData().getRSN() + ": " : ": ") + translation,
                 "");
     }
 
     /**
      * Helper method to send a translation message to friends chat. This is done because a user is filtering that chat and we want them to see the translation under the same filter.
      */
-    private void sendTranslationToFriendsChat(String languageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
+    private void sendTranslationToFriendsChat(String fromLanguageCode, String toLanguageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
         client.addChatMessage(ChatMessageType.FRIENDSCHAT,
                 (menuEntry.getChatLineData().isGameMessage() ? "GAME" : menuEntry.getChatLineData().getRSN()),
                 "</col>" + translation,
-                languageCode);
+                (this.config.isShowingDetectedLanguages() ? fromLanguageCode + "->" + toLanguageCode : toLanguageCode));
     }
 
     /**
      * Helper method to send a translation message to game chat. This is the default.
      */
-    private void sendTranslationToGameChat(String languageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
+    private void sendTranslationToGameChat(String fromLanguageCode, String toLanguageCode, String translation, ChatTranslatorMenuEntry menuEntry) {
         client.addChatMessage(ChatMessageType.GAMEMESSAGE,
                 "",
-                "[" + languageCode + "] "
+                "[" + (this.config.isShowingDetectedLanguages() ? fromLanguageCode + "->" + toLanguageCode : toLanguageCode) + "] "
                         + (menuEntry.getChatLineData().isSaidByPlayer() ? menuEntry.getChatLineData().getRSN() + ": " : "")
                         + translation,
                 "");

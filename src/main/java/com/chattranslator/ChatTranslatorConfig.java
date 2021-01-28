@@ -1,6 +1,5 @@
 package com.chattranslator;
 
-import com.chattranslator.ui.ChatTranslatorPanel;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
@@ -20,48 +19,27 @@ public interface ChatTranslatorConfig extends Config {
     /*
         HIDDEN CONFIGURATION BEGINS HERE
      */
-
     /**
-     * Credentials are loaded in by the {@link ChatTranslatorPanel} via the file picker menu.
-     * Credentials are given by Google to authenticate an API account.
-     * <br>
-     * To generate a key for a service account, visit <a href="https://console.cloud.google.com/iam-admin/serviceaccounts">https://console.cloud.google.com/iam-admin/serviceaccounts</a>.
-     * </br>
-     * An example credential file can look like this "example.json" file:
-     * <pre>
-     * {
-     *   "type": "service_account",
-     *   "project_id": "project-id-000000",
-     *   "private_key_id": "abcdef000000000000000000000",
-     *   "private_key": "-----BEGIN PRIVATE KEY-----\n__LOTS OF STUFF HERE__\n-----END PRIVATE KEY-----\n",
-     *   "client_email": "runelite@project-id-000000.iam.gserviceaccount.com",
-     *   "client_id": "00000000000000000000",
-     *   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-     *   "token_uri": "https://oauth2.googleapis.com/token",
-     *   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-     *   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/project-id-000000.iam.gserviceaccount.com"
-     * }
-     * </pre>
+     * An API key for Google Cloud Platform which has access to the Google Translate API.
      *
-     * @return credential file contents used to authenticate and authorize a google cloud platform account
+     * @return a Google Cloud Platform API key
      */
     @ConfigItem(
-            keyName = "credentials",
-            name = "Google Cloud Credentials",
-            description = "The contents of a private key file from Google Cloud Platform used to authenticate.",
+            keyName = "apiKey",
+            name = "API Key",
+            description = "An API Key for Google Cloud Platform used to authenticate to the Google Translate API.",
+            secret = true,
             hidden = true // change to false for easier debugging!
     )
-    default String lastCredentials() {
+    default String apiKey() {
         return null;
     }
     @ConfigItem(
-            keyName = "credentials",
-            name = "Google Cloud Credentials",
-            description = "The contents of a private key file from Google Cloud Platform used to authenticate."
+            keyName = "apiKey",
+            name = "API Key",
+            description = "An API Key for Google Cloud Platform used to authenticate to the Google Translate API."
     )
-    void lastCredentials(String str);
-
-
+    void apiKey(String str);
     @ConfigItem(
             keyName = "targetLangCode",
             name = "Target Language Code",
@@ -130,27 +108,64 @@ public interface ChatTranslatorConfig extends Config {
     /*
         VISIBLE CONFIGURATION STARTS HERE
      */
-    @ConfigItem(
-            keyName = "rightClickChat",
-            name = "Right click chatline translation",
-            description = "Enables a right click option to translate chatlines to your language"
-    )
-    default boolean rightClickChat() {
-        return true;
-    }
 
     // DISPLAY OPTIONS
     @ConfigSection(
             position = 1,
+            name = "Translation",
+            description = "How translation is performed"
+    )
+    String translateSection = "translateSection";
+    @ConfigItem(
+            keyName = "standardTranslate",
+            name = "Standard translation",
+            description = "Enables a right click option to translate chatlines from source to target language",
+            section = "translateSection"
+    )
+    default boolean isStandardTranslationEnabled() {
+        return true;
+    }
+    @ConfigItem(
+            keyName = "reverseTranslate",
+            name = "Reverse translation",
+            description = "Enables a right click option to translate chatlines from target to source language",
+            section = "translateSection",
+            hidden = true // This feature is TODO
+    )
+    default boolean isReverseTranslationEnabled() {
+        return false;
+    }
+
+    // DISPLAY OPTIONS
+    @ConfigSection(
+            position = 2,
             name = "Display",
             description = "Determines how translations are shown"
     )
     String displaySection = "displaySection";
 
     @ConfigItem(
+            keyName = "previewChatInput",
+            name = "Preview input translations",
+            description = "In addition to translating to the chatbox, also show a preview of the translation in the chat input when translating unsent input",
+            section = "displaySection"
+    )
+    default boolean isPreviewingChatInput() {
+        return true;
+    }
+    @ConfigItem(
+            keyName = "showDetectedLanguages",
+            name = "Show source language",
+            description = "Shows the source/detected language during translation",
+            section = "displaySection"
+    )
+    default boolean isShowingDetectedLanguages() {
+        return true;
+    }
+    @ConfigItem(
             keyName = "isTranslationHighlighted",
             name = "Highlight translated lines?",
-            description = "Whether translated lines by other players should be highlighted",
+            description = "Whether translated lines should be highlighted",
             section = "displaySection"
     )
     default boolean isTranslationHighlighted() {
@@ -164,7 +179,7 @@ public interface ChatTranslatorConfig extends Config {
             section = "displaySection"
     )
     default Color sourceLangColor() {
-        return Color.GREEN;
+        return new Color(0xff, 0xA4, 0x00);
     }
 
     @ConfigItem(
@@ -174,6 +189,6 @@ public interface ChatTranslatorConfig extends Config {
             section = "displaySection"
     )
     default Color targetLangColor() {
-        return Color.RED;
+        return new Color(0xCE, 0x68, 0xFF);
     }
 }

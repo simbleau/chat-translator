@@ -9,22 +9,19 @@ import net.runelite.client.util.SwingUtil;
 import javax.inject.Inject;
 import javax.swing.*;
 import javax.swing.plaf.basic.BasicButtonUI;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Component;
-import java.io.File;
+import java.awt.*;
 
 /**
- * The authentication button for the Chat Translator. This allows the user to pick their Google Translate API config and reflects the status of their authentication.
+ * The authentication button for the Chat Translator. This allows the user to pick their Google Translate API API key and reflects the status of their authentication.
  *
- * @version January 2021
  * @author <a href="https://spencer.imbleau.com">Spencer Imbleau</a>
+ * @version January 2021
  */
 public class ChatTranslatorAuthenticateButton extends JButton implements Runnable {
 
     private static final String AUTH_TEXT = "Authenticate";
     private static final String UNAUTH_TEXT = "Unauthenticate";
-    private static final String AUTH_TOOLTIP = "Upload your service account credentials and test authentication.";
+    private static final String AUTH_TOOLTIP = "Enter your API key to authenticate.";
     private static final String UNAUTH_TOOLTIP = "Unauthenticate your account.";
     private static final Color BUTTON_COLOR = ColorScheme.DARKER_GRAY_COLOR;
     private static final Color BUTTON_HOVER_COLOR = ColorScheme.DARKER_GRAY_HOVER_COLOR;
@@ -49,11 +46,6 @@ public class ChatTranslatorAuthenticateButton extends JButton implements Runnabl
     private final ChatTranslatorPlugin plugin;
 
     /**
-     * The authentication file chosen by the user.
-     */
-    private File authFile;
-
-    /**
      * The text the button should return to on mouse exit.
      */
     private String buttonReturnText;
@@ -64,16 +56,22 @@ public class ChatTranslatorAuthenticateButton extends JButton implements Runnabl
     private Color buttonReturnColor;
 
     /**
+     * The dialog which requests an API key from the user.
+     */
+    private final ChatTranslatorAPIKeyDialog apiKeyDialog;
+
+    /**
      * Construct the authenticate button.
      *
      * @param translator - the translator
-     * @param plugin - the plugin
+     * @param plugin     - the plugin
      */
     @Inject
     public ChatTranslatorAuthenticateButton(ChatTranslator translator, ChatTranslatorPlugin plugin) {
         super();
         this.translator = translator;
         this.plugin = plugin;
+        this.apiKeyDialog = new ChatTranslatorAPIKeyDialog(this);
 
         SwingUtil.removeButtonDecorations(this);
         this.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
@@ -104,13 +102,8 @@ public class ChatTranslatorAuthenticateButton extends JButton implements Runnabl
                 this.setToolTipText(AUTH_TOOLTIP);
             } else {
                 // User clicked to upload credentials
-                JFileChooser fileChooser = new JFileChooser();
-                fileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
-                int result = fileChooser.showOpenDialog(this);
-                if (result == JFileChooser.APPROVE_OPTION) {
-                    this.authFile = fileChooser.getSelectedFile();
-                    new Thread(this).start();
-                }
+                this.apiKeyDialog.setVisible(true);
+                this.apiKeyDialog.focusTextField();
             }
         });
 
@@ -147,6 +140,10 @@ public class ChatTranslatorAuthenticateButton extends JButton implements Runnabl
     // Authentication via the button will be threaded
     @Override
     public void run() {
+        // Retrieve auth key and dispose
+        String authKey = this.apiKeyDialog.getApiKey();
+        this.apiKeyDialog.clearApiKey();
+
         // Performs authentication attempt
         this.setEnabled(false);
         this.plugin.getPanel().disableLanguagePanel();
@@ -156,7 +153,7 @@ public class ChatTranslatorAuthenticateButton extends JButton implements Runnabl
         // Auth here
         boolean result;
         try {
-            translator.authenticate(authFile);
+            translator.authenticate(authKey);
             this.plugin.getPanel().showLanguagePanel();
             this.plugin.getPanel().enableLanguagePanel(translator.getSupportedLanguages());
             this.plugin.loadLastSettings();

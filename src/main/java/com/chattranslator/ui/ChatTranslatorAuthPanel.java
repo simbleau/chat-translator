@@ -62,7 +62,7 @@ public class ChatTranslatorAuthPanel extends PluginPanel {
         instructions.setForeground(Color.GRAY);
         instructions.setText("<html><body style ='text-align:left'><h1 style='text-align:center'>Instructions</h1>"
                 + "<p>You will need access to the Google Translate API under Google Cloud Platform. "
-                + "Once you have credentials, press the button below to upload your credentials and authenticate."
+                + "Once you have an API key, press the button below to authenticate and start the plugin."
                 + "</p><br><p>For step-by-step instructions, click the help icon to the left."
                 + "</p></body></html>");
 

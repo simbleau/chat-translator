@@ -1,7 +1,8 @@
 package com.chattranslator.ui;
 
 import com.chattranslator.ChatTranslatorConfig;
-import com.google.cloud.translate.Language;
+import com.chattranslator.data.GetSupportedLanguagesResponseLanguage;
+import com.chattranslator.data.GetSupportedLanguagesResponseList;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
@@ -111,14 +112,14 @@ public class ChatTranslatorLanguagePanel extends PluginPanel {
      *
      * @param languages - a list of Google Translate API supported languages
      */
-    public void enableOptions(List<Language> languages) {
+    public void enableOptions(GetSupportedLanguagesResponseList languages) {
         // Avoid events while loading
         Stream.of(sourceLanguageComboBox.getItemListeners()).forEach(sourceLanguageComboBox::removeItemListener);
         Stream.of(targetLanguageComboBox.getItemListeners()).forEach(targetLanguageComboBox::removeItemListener);
 
         this.sourceLanguageComboBox.removeAllItems();
         this.targetLanguageComboBox.removeAllItems();
-        for (Language lang : languages) {
+        for (GetSupportedLanguagesResponseLanguage lang : languages.languages) {
             LanguageComboItem wrapper = new LanguageComboItem(lang);
             this.sourceLanguageComboBox.addItem(wrapper);
             this.targetLanguageComboBox.addItem(wrapper);
@@ -128,22 +129,22 @@ public class ChatTranslatorLanguagePanel extends PluginPanel {
         sourceLanguageComboBox.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED) {
                 if (e.getItem() instanceof LanguageComboItem) {
-                    Language sourceLang = ((LanguageComboItem) e.getItem()).language;
-                    log.info("Selected source language: " + sourceLang.getName());
-                    this.config.lastSourceLanguageCode(sourceLang.getCode());
-                    this.config.lastSourceLanguageName(sourceLang.getName());
-                    log.info("Saved source language: " + sourceLang.getName());
+                    GetSupportedLanguagesResponseLanguage sourceLang = ((LanguageComboItem) e.getItem()).language;
+                    log.info("Selected source language: " + sourceLang.name);
+                    this.config.lastSourceLanguageCode(sourceLang.language);
+                    this.config.lastSourceLanguageName(sourceLang.name);
+                    log.info("Saved source language: " + sourceLang.language);
                 }
             }
         });
         targetLanguageComboBox.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED) {
                 if (e.getItem() instanceof LanguageComboItem) {
-                    Language targetLang = ((LanguageComboItem) e.getItem()).language;
-                    log.info("Selected target language: " + targetLang.getName());
-                    this.config.lastTargetLanguageCode(targetLang.getCode());
-                    this.config.lastTargetLanguageName(targetLang.getName());
-                    log.info("Saved target language: " + targetLang.getName());
+                    GetSupportedLanguagesResponseLanguage targetLang = ((LanguageComboItem) e.getItem()).language;
+                    log.info("Selected target language: " + targetLang.name);
+                    this.config.lastTargetLanguageCode(targetLang.language);
+                    this.config.lastTargetLanguageName(targetLang.name);
+                    log.info("Saved target language: " + targetLang.language);
                 }
             }
         });
@@ -185,8 +186,8 @@ public class ChatTranslatorLanguagePanel extends PluginPanel {
         boolean loaded = false;
         for (int i = 0; i < comboBox.getItemCount(); i++) {
             LanguageComboItem item = comboBox.getItemAt(i);
-            Language lang = item.language;
-            if (lang.getCode().equalsIgnoreCase(languageCode)) {
+            GetSupportedLanguagesResponseLanguage lang = item.language;
+            if (lang.language.equalsIgnoreCase(languageCode)) {
                 comboBox.setSelectedItem(item);
                 loaded = true;
                 break;
@@ -201,15 +202,15 @@ public class ChatTranslatorLanguagePanel extends PluginPanel {
      * An combo box item which stores a Language from Google's API
      */
     static class LanguageComboItem {
-        private final Language language;
+        private final GetSupportedLanguagesResponseLanguage language;
 
-        public LanguageComboItem(Language language) {
+        public LanguageComboItem(GetSupportedLanguagesResponseLanguage language) {
             this.language = language;
         }
 
         @Override
         public String toString() {
-            return this.language.getName();
+            return this.language.name;
         }
     }
 }
