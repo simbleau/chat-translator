@@ -5,7 +5,6 @@ import com.chattranslator.data.TranslateTextResponseTranslation;
 import com.chattranslator.ex.GoogleAPIException;
 import com.chattranslator.ex.GoogleException;
 import com.chattranslator.ui.ChatTranslatorPanel;
-import com.google.common.base.Charsets;
 import com.google.inject.Provides;
 
 import javax.annotation.Nullable;
@@ -29,7 +28,6 @@ import net.runelite.client.util.Text;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.awt.image.BufferedImage;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -57,7 +55,7 @@ public class ChatTranslatorPlugin extends Plugin {
     private NavigationButton navButton;
 
     /**
-     * A menu entry buffer used to translate text for translation.
+     * A menu entry buffer decorated to store translation data.
      */
     private ChatTranslatorMenuEntry menuEntry = null;
 
@@ -142,7 +140,7 @@ public class ChatTranslatorPlugin extends Plugin {
     }
 
     @Subscribe
-    public void onMenuOpened(MenuOpened event) {
+    public void onMenuOpened(MenuOpened event) throws Exception {
         if (!this.config.isStandardTranslationEnabled()) return;
 
         if (isHoveringChatBoxWidget()) {
@@ -177,7 +175,7 @@ public class ChatTranslatorPlugin extends Plugin {
     }
 
     @Subscribe
-    public void onMenuOptionClicked(MenuOptionClicked event) {
+    public void onMenuOptionClicked(MenuOptionClicked event) throws Exception {
         if (event.getMenuAction() == MenuAction.RUNELITE && event.getMenuOption().startsWith("Translate")) {
             new Thread(() -> {
                 try {
