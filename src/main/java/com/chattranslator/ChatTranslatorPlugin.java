@@ -12,12 +12,15 @@ import javax.inject.Inject;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
-import net.runelite.api.events.MenuOpened;
-import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.Point;
+import net.runelite.api.events.*;
+import net.runelite.api.vars.InputType;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -27,6 +30,7 @@ import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
 import org.apache.commons.lang3.ArrayUtils;
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.List;
@@ -60,6 +64,12 @@ public class ChatTranslatorPlugin extends Plugin {
     private ChatTranslatorMenuEntry menuEntry = null;
 
     /**
+     * A buffer used to preview an interactive translation in the chat input.
+     */
+    private String previewTranslation = null;
+    private String lastPreviewText = null;
+
+    /**
      * The user interface panel.
      */
     @Inject
@@ -70,6 +80,12 @@ public class ChatTranslatorPlugin extends Plugin {
      */
     @Inject
     private Client client;
+
+    /**
+     * The client thread.
+     */
+    @Inject
+    private ClientThread clientThread;
 
     /**
      * The translator for the plugin.
@@ -190,75 +206,139 @@ public class ChatTranslatorPlugin extends Plugin {
                     if (translationList.isEmpty()) {
                         throw new GoogleAPIException("No translations found");
                     }
-                    TranslateTextResponseTranslation translation = translationList.getBestTranslation(config.lastTargetLanguageCode());
-                    String translatedText = translation.translatedText;
-                    String fromLanguageCode = translation.detectedSourceLanguage.toUpperCase();
-                    String toLanguageCode = menuEntry.getTargetLanguageCode().toUpperCase();
+                    TranslateTextResponseTranslation translationResponse = translationList.getBestTranslation(config.lastTargetLanguageCode());
+                    String translation = translationResponse.translatedText;
+                    String fromLanguage = translationResponse.detectedSourceLanguage.toUpperCase();
+                    String toLanguage = menuEntry.getTargetLanguageCode().toUpperCase();
                     log.info("Translation Complete."
-                            + "\n\tBefore[" + fromLanguageCode + "]: '" + menuEntry.getChatLineData().getChatLine() + "'"
-                            + "\n\tAfter[" + toLanguageCode + "]: " + translatedText + "'");
+                            + "\n\tBefore[" + fromLanguage + "]: '" + menuEntry.getChatLineData().getChatLine() + "'"
+                            + "\n\tAfter[" + toLanguage + "]: '" + translation + "'");
 
-                    // Highlighting
-                    if (config.isTranslationHighlighted()) {
-                        // Color from language code
-                        if (fromLanguageCode.equalsIgnoreCase(config.lastSourceLanguageCode())) {
-                            fromLanguageCode = ColorUtil.wrapWithColorTag(fromLanguageCode, config.sourceLangColor());
-                        } else if (fromLanguageCode.equalsIgnoreCase(config.lastTargetLanguageCode())) {
-                            fromLanguageCode = ColorUtil.wrapWithColorTag(fromLanguageCode, config.targetLangColor());
+                    clientThread.invokeLater(() -> {
+                        // Copy items for translation formatting
+                        String translationFormatted = translation;
+                        String fromLanguageFormatted = fromLanguage;
+                        String toLanguageFormatted = toLanguage;
+
+                        // Preview the translation in chat input
+                        if (this.config.isPreviewingChatInput() && menuEntry.getChatLineData().isSaidByLocalPlayer()) {
+                            stagePreview(translationFormatted);
                         }
 
-                        // Color to language code
-                        if (toLanguageCode.equalsIgnoreCase(config.lastSourceLanguageCode())) {
-                            toLanguageCode = ColorUtil.wrapWithColorTag(toLanguageCode, config.sourceLangColor());
-                            translatedText = ColorUtil.wrapWithColorTag(translatedText, config.sourceLangColor());
-                        } else if (toLanguageCode.equalsIgnoreCase(config.lastTargetLanguageCode())) {
-                            toLanguageCode = ColorUtil.wrapWithColorTag(toLanguageCode, config.targetLangColor());
-                            translatedText = ColorUtil.wrapWithColorTag(translatedText, config.targetLangColor());
-                        }
-                    }
-
-                    // Send translation message
-                    ChatMessageType messageFilter = getVisibleChatMessageType();
-                    switch (messageFilter) {
-                        case PUBLICCHAT:
-                            sendTranslationToPublicChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
-                            break;
-                        case FRIENDSCHAT:
-                            sendTranslationToFriendsChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
-                            break;
-                        case TRADE:
-                            sendTranslationToTradeChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
-                            break;
-                        case PRIVATECHAT:
-                            if (menuEntry.getChatLineData().isSaidByPlayer()) {
-                                if (menuEntry.getChatLineData().getRSN().startsWith("To ")) {
-                                    menuEntry.getChatLineData().fixRsnForPMFilter(); // Change "From <rsn>" to "<rsn>" - This is specific to the Private Chat filter.
-                                    sendTranslationToPrivateChatOut(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
-                                    break;
-                                } else if (menuEntry.getChatLineData().getRSN().startsWith("From ")) {
-                                    menuEntry.getChatLineData().fixRsnForPMFilter(); // Change "From <rsn>" to "<rsn>" - This is specific to the Private Chat filter.
-                                    sendTranslationToPrivateChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
-                                    break;
-                                }
+                        // Highlighting for chat box
+                        if (config.isTranslationHighlighted()) {
+                            // Color from language code
+                            if (fromLanguageFormatted.equalsIgnoreCase(config.lastSourceLanguageCode())) {
+                                fromLanguageFormatted = ColorUtil.wrapWithColorTag(fromLanguageFormatted, config.sourceLangColor());
+                            } else if (fromLanguageFormatted.equalsIgnoreCase(config.lastTargetLanguageCode())) {
+                                fromLanguageFormatted = ColorUtil.wrapWithColorTag(fromLanguageFormatted, config.targetLangColor());
                             }
-                            sendTranslationToPrivateChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
-                            break;
-                        case GAMEMESSAGE:
-                        default:
-                            sendTranslationToGameChat(fromLanguageCode, toLanguageCode, translatedText, menuEntry);
-                            break;
-                    }
 
-                    // Preview the translation in chat input
-                    if (this.config.isPreviewingChatInput() && menuEntry.getChatLineData().isSaidByLocalPlayer()) {
-                        previewTranslation(translatedText);
-                    }
+                            // Color to language code
+                            if (toLanguageFormatted.equalsIgnoreCase(config.lastSourceLanguageCode())) {
+                                toLanguageFormatted = ColorUtil.wrapWithColorTag(toLanguageFormatted, config.sourceLangColor());
+                                translationFormatted = ColorUtil.wrapWithColorTag(translationFormatted, config.sourceLangColor());
+                            } else if (toLanguageFormatted.equalsIgnoreCase(config.lastTargetLanguageCode())) {
+                                toLanguageFormatted = ColorUtil.wrapWithColorTag(toLanguageFormatted, config.targetLangColor());
+                                translationFormatted = ColorUtil.wrapWithColorTag(translationFormatted, config.targetLangColor());
+                            }
+                        }
+
+                        // Send translation message
+                        ChatMessageType messageFilter = getVisibleChatMessageType();
+                        switch (messageFilter) {
+                            case PUBLICCHAT:
+                                sendTranslationToPublicChat(fromLanguageFormatted, toLanguageFormatted, translationFormatted, menuEntry);
+                                break;
+                            case FRIENDSCHAT:
+                                sendTranslationToFriendsChat(fromLanguageFormatted, toLanguageFormatted, translationFormatted, menuEntry);
+                                break;
+                            case TRADE:
+                                sendTranslationToTradeChat(fromLanguageFormatted, toLanguageFormatted, translationFormatted, menuEntry);
+                                break;
+                            case PRIVATECHAT:
+                                if (menuEntry.getChatLineData().isSaidByPlayer()) {
+                                    if (menuEntry.getChatLineData().getRSN().startsWith("To ")) {
+                                        menuEntry.getChatLineData().fixRsnForPMFilter(); // Change "From <rsn>" to "<rsn>" - This is specific to the Private Chat filter.
+                                        sendTranslationToPrivateChatOut(fromLanguageFormatted, toLanguageFormatted, translationFormatted, menuEntry);
+                                        break;
+                                    } else if (menuEntry.getChatLineData().getRSN().startsWith("From ")) {
+                                        menuEntry.getChatLineData().fixRsnForPMFilter(); // Change "From <rsn>" to "<rsn>" - This is specific to the Private Chat filter.
+                                        sendTranslationToPrivateChat(fromLanguageFormatted, toLanguageFormatted, translationFormatted, menuEntry);
+                                        break;
+                                    }
+                                }
+                                sendTranslationToPrivateChat(fromLanguageFormatted, toLanguageFormatted, translationFormatted, menuEntry);
+                                break;
+                            case GAMEMESSAGE:
+                            default:
+                                sendTranslationToGameChat(fromLanguageFormatted, toLanguageFormatted, translationFormatted, menuEntry);
+                                break;
+                        }
+                    });
+
                 } catch (Exception e) {
                     log.error("Translation exception: ", e);
                     client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Translation Error: " + e.getMessage(), "");
                 }
             }).start();
         }
+    }
+
+    @Subscribe
+    public void onConfigChanged(ConfigChanged configChanged) throws Exception {
+        if (configChanged.getKey().equals("previewChatInput")) {
+            if (!config.isPreviewingChatInput()) {
+                stopPreview();
+            }
+        }
+    }
+
+    @Subscribe
+    public void onVarClientStrChanged(VarClientStrChanged varClientStrChanged) throws Exception {
+        // Return if the user does not want to preview chat
+        if (!config.isPreviewingChatInput()) return;
+
+        // Return if there is nothing to preview
+        if (this.previewTranslation == null) return;
+
+        // Update the preview
+        if (varClientStrChanged.getIndex() == VarClientStr.CHATBOX_TYPED_TEXT.getIndex()) {
+            String userInput = client.getVar(VarClientStr.CHATBOX_TYPED_TEXT);
+
+            // Conditions to cancel a preview when typing:
+            // 1 : User sends the chatline
+            // 2 : User hits backspace when the chatline is already empty
+            if (!this.lastPreviewText.isEmpty() && userInput.isEmpty()) {
+                clientThread.invokeLater(() -> stopPreview());
+                return;
+            }
+            // 3 : User input length is longer than the translation length
+            if (userInput.length() > previewTranslation.length()) {
+                clientThread.invokeLater(() -> stopPreview());
+                return;
+            }
+            // 4 : The last several characters in a row entered do not match the translation
+            final int incorrectMax = 5;
+            if (userInput.length() >= incorrectMax && previewTranslation.length() >= incorrectMax) {
+                int incorrect = 0;
+                for (int i = 0; i < incorrectMax; i++) {
+                    char correct = Character.toLowerCase(previewTranslation.charAt(userInput.length() - i - 1));
+                    char user = Character.toLowerCase(userInput.charAt(userInput.length() - i - 1));
+                    if (user != correct) {
+                        incorrect++;
+                    }
+                }
+                if (incorrect == incorrectMax) {
+                    clientThread.invokeLater(() -> stopPreview());
+                    return;
+                }
+            }
+
+            this.lastPreviewText = userInput;
+            clientThread.invokeLater(() -> writeChatInput(getChatInputPreviewText()));
+        }
+
     }
 
     /**
@@ -370,11 +450,8 @@ public class ChatTranslatorPlugin extends Plugin {
     ChatLineData getLocalPlayerChatLineData() {
         try {
             String rsn = this.client.getLocalPlayer().getName();
-            Widget chatBuffer = this.client.getWidget(WidgetInfo.CHATBOX_INPUT);
-            String chatLine = Text.removeTags(chatBuffer.getText());
-            chatLine = chatLine.replace(rsn + ": ", ""); // Remove username
-            chatLine = chatLine.substring(0, chatLine.length() - 1); // Remove the '*' at the end
-            return new ChatLineData(rsn, chatLine, true);
+            String chatInput = client.getVar(VarClientStr.CHATBOX_TYPED_TEXT);
+            return new ChatLineData(rsn, chatInput, true);
         } catch (Exception e) {
             return null;
         }
@@ -421,21 +498,125 @@ public class ChatTranslatorPlugin extends Plugin {
     }
 
     /**
-     * Helper method to preview a translation in a user's chat input.
+     * Helper method to stage a translation preview for the user. This must be called from the client thread.
      *
      * @param translation - the translation to preview for the user in their chat input
      */
-    private void previewTranslation(String translation) {
-        if (Text.removeTags(translation).isEmpty()) {
-            return;
-        }
-        Widget chatBuffer = this.client.getWidget(WidgetInfo.CHATBOX_INPUT);
-        if (chatBuffer == null) return;
-        String rawChatBuffer = chatBuffer.getText();
-        String chatLine = getLocalPlayerChatLineData().getChatLine();
-        log.info("Previewing: " + translation);
+    private void stagePreview(String translation) {
+        try {
+            //  Clear the chat input
+            int inputType = client.getVar(VarClientInt.INPUT_TYPE);
+            if (inputType == InputType.NONE.getType()) {
+                // Clear the chat input in preparation for chat preview
+                client.setVar(VarClientStr.CHATBOX_TYPED_TEXT, "");
+                client.runScript(ScriptID.CHAT_PROMPT_INIT);
+            } else {
+                // User is typing in private chat or in a dialog, etc.
+                // The preview cannot be done
+                return;
+            }
 
-        chatBuffer.setText(rawChatBuffer.replace(chatLine, translation));
+            // Stage the preview
+            this.previewTranslation = translation;
+            this.lastPreviewText = "";
+
+            writeChatInput(getChatInputPreviewText());
+            log.debug("Started translation preview of '" + translation + "'");
+        } catch (Exception e) {
+            log.error("Translation could not be staged", e);
+        }
+    }
+
+    /**
+     * Helper method to cancel the translation preview for the user. This must be called from the client thread.
+     */
+    private void stopPreview() {
+        try {
+            // Clear preview
+            this.previewTranslation = null;
+            this.lastPreviewText = null;
+
+            // Return back to the normal state
+            String chatInput = client.getVar(VarClientStr.CHATBOX_TYPED_TEXT);
+            final Color defaultTextColor = new Color(0x90, 0x90, 0xff);
+            writeChatInput(ColorUtil.wrapWithColorTag(chatInput, defaultTextColor));
+            log.debug("Stopped translation preview.");
+        } catch (Exception e) {
+            log.error("Translation could not be cancelled", e);
+        }
+    }
+
+    /**
+     * Helper method to put raw chat data into the chat input widget.
+     * For example, if the desired text is "Lala", similar to the following will be returned:
+     * <pre>
+     *     Username: Lala<col=default>*</col>
+     * </pre>
+     *
+     * @param text - the desired chat content to be inserted into the chat input widget
+     */
+    private void writeChatInput(String text) {
+        try {
+            // Replace the visible chatline input with a preview
+            Widget chatBuffer = client.getWidget(WidgetInfo.CHATBOX_INPUT);
+
+            StringBuilder rawChatInput = new StringBuilder();
+            rawChatInput.append(client.getLocalPlayer().getName());
+            rawChatInput.append(": ");
+            rawChatInput.append(text);
+            final Color defaultTextColor = new Color(0x90, 0x90, 0xff);
+            rawChatInput.append(ColorUtil.wrapWithColorTag("*", defaultTextColor)); // The asterisk at the end
+
+            chatBuffer.setText(rawChatInput.toString());
+        } catch (Exception e) {
+            log.error("Could not write chat input", e);
+        }
+    }
+
+
+    /**
+     * Helper method to return the raw chat data of the current preview.
+     * For example, if the desired preview text is "Hej" (Hello), and the user has inputted "hZ", similar to the following will be returned:
+     * <pre>{@code
+     *     <col=green>h</col><col=red>Z</col><col=grey>j</col>
+     * }</pre>
+     * Where green is the correct color, red is the incorrect color, and grey is a not-typed character color.
+     *
+     * @return the raw chat data for a preview of the current translation attempt
+     */
+    private @Nullable
+    String getChatInputPreviewText() {
+        try {
+            String userInput = client.getVar(VarClientStr.CHATBOX_TYPED_TEXT);
+
+            StringBuilder translationPreviewColoring = new StringBuilder();
+            for (int i = 0; i < previewTranslation.length(); i++) {
+                Character correct = previewTranslation.charAt(i);
+
+                if (i < userInput.length()) {
+                    // User typed a character at this index
+                    Character user = userInput.charAt(i);
+                    if (Character.toLowerCase(user) == Character.toLowerCase(correct)) {
+                        // With highlighting
+                        if (this.config.isTranslationHighlighted()) {
+                            translationPreviewColoring.append(ColorUtil.wrapWithColorTag(Character.toString(user), config.targetLangColor()));
+                        } else {
+                            final Color defaultTextColor = new Color(0x90, 0x90, 0xff);
+                            translationPreviewColoring.append(ColorUtil.wrapWithColorTag(Character.toString(user), defaultTextColor));
+                        }
+                    } else {
+                        translationPreviewColoring.append(ColorUtil.wrapWithColorTag(Character.toString(user), Color.RED));
+                    }
+                } else {
+                    // User did not type a character at this index
+                    translationPreviewColoring.append(ColorUtil.wrapWithColorTag(Character.toString(correct), Color.GRAY));
+                }
+            }
+
+            return translationPreviewColoring.toString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -485,7 +666,7 @@ public class ChatTranslatorPlugin extends Plugin {
         client.addChatMessage(ChatMessageType.FRIENDSCHAT,
                 (menuEntry.getChatLineData().isGameMessage() ? "GAME" : menuEntry.getChatLineData().getRSN()),
                 "</col>" + translation,
-                (this.config.isShowingDetectedLanguages() ? fromLanguageCode + "->" + toLanguageCode : toLanguageCode));
+                "</col>" + (this.config.isShowingDetectedLanguages() ? fromLanguageCode + "->" + toLanguageCode : toLanguageCode));
     }
 
     /**
