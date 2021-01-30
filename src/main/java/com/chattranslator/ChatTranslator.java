@@ -69,7 +69,7 @@ public class ChatTranslator {
     }
 
     /**
-     * Helper method to authenticate using an API Key.
+     * Authenticate using an API Key.
      *
      * @param apiKey - the data used for authentication
      * @throws GoogleAuthenticationException on authentication failure
