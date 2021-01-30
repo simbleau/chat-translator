@@ -9,6 +9,8 @@
   - In the RuneLite Chat Translator panel, you can specify a source language and a target language for translation.
     - The source language is a language you speak
     - The target language is a language you (probably) don't speak and want to translate to
+    ![Options](https://imbleau.com/runelite/options.png?v=1.2)
+
   - Right click over a chat message of text in the chat box to translate
     ![Demo 1](https://imbleau.com/runelite/demo1.gif?v=1.2)
 
