@@ -192,6 +192,14 @@ public class ChatTranslatorPlugin extends Plugin {
 
     @Subscribe
     public void onMenuOptionClicked(MenuOptionClicked event) throws Exception {
+        if (!translator.isAuthenticated()) {
+            clientThread.invokeLater(() -> {
+                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+                        ColorUtil.wrapWithColorTag("Please authenticate using the side panel to use translation.", Color.RED), "");
+                return;
+            });
+        }
+
         if (event.getMenuAction() == MenuAction.RUNELITE && event.getMenuOption().startsWith("Translate")) {
             new Thread(() -> {
                 try {
