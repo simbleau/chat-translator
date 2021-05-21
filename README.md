@@ -1,6 +1,6 @@
 # Chat Translator
 
-[![](https://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/rank/author/Spencer%20Imbleau)](https://runelite.net/plugin-hub) [![](https://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/rank/plugin/chat-translator)](https://runelite.net/plugin-hub) [![](https://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/installs/plugin/chat-translator)](https://runelite.net/plugin-hub) 
+[![](https://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/rank/author/Spencer_Imbleau)](https://runelite.net/plugin-hub) [![](https://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/rank/plugin/chat-translator)](https://runelite.net/plugin-hub) [![](https://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/installs/plugin/chat-translator)](https://runelite.net/plugin-hub) 
 
 🅰️->🈯️ The Chat Translator plugin allows players to translate any message in the chat box by right clicking the message. The plugin uses Google Cloud Platform's Translate API. This means the player must setup such an account and generate an API key for use in this plugin. Steps are given below.
 
