@@ -690,8 +690,6 @@ public class ChatTranslatorPlugin extends Plugin {
     }
 
     /*
-        Never let language be a barrier, let it be a challenge to overcome.
-        Golale Ahour + Spencer Imbleau
-        Made with love.
+        Lala + Spencer forever.
      */
 }
