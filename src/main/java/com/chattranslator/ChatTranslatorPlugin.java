@@ -168,8 +168,6 @@ public class ChatTranslatorPlugin extends Plugin {
 
             // Inject the translate menu entry
             this.menuEntry = new ChatTranslatorMenuEntry(config);
-            menuEntry.setType(MenuAction.RUNELITE.getId());
-            menuEntry.setTarget("");
             ChatLineData chatData = null;
             if (isHoveringChatInputWidget()) {
                 chatData = getLocalPlayerChatLineData();
@@ -184,7 +182,10 @@ public class ChatTranslatorPlugin extends Plugin {
             if (chatData == null || chatData.getChatLine().isEmpty()) {
                 return;
             }
-            client.setMenuEntries(ArrayUtils.insert(1, client.getMenuEntries(), menuEntry));
+            client.createMenuEntry(-1)
+                .setType(MenuAction.RUNELITE)
+                .setTarget("")
+                .setOption(menuEntry.getOption());
         } else {
             this.menuEntry = null;
         }
