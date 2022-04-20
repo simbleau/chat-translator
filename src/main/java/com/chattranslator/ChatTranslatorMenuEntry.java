@@ -1,18 +1,17 @@
 package com.chattranslator;
 
-import net.runelite.api.MenuEntry;
 import net.runelite.client.util.ColorUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * A wrapped {@link MenuEntry} used to store metadata passed for translation.
+ * Used to store metadata passed for translation.
  *
  * @version January 2021
  * @author <a href="https://spencer.imbleau.com">Spencer Imbleau</a>
  */
-public class ChatTranslatorMenuEntry extends MenuEntry {
+public class ChatTranslatorMenuEntry {
 
     /**
      * What the menu entry says when a valid source language and target language are specified.
@@ -127,7 +126,6 @@ public class ChatTranslatorMenuEntry extends MenuEntry {
      * @see #EXPLICIT_TRANSLATION_FORMAT
      * @see #IMPLICIT_TRANSLATION_FORMAT
      */
-    @Override
     public String getOption() {
         String menuOption;
         if (this.sourceLanguageCode == null) {
